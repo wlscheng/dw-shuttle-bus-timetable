@@ -94,20 +94,31 @@ body{
 .sheet ul{
   list-style:none;display:grid;
   grid-template-columns:repeat(auto-fill,minmax(4rem,1fr));
-  /* fixed row height tied to the type size — rows never stretch to
-     fill leftover space; the block simply stops and sits at the top */
-  grid-auto-rows:1.95rem;
+  /* row height is a variable: fixed by default, but JS grows it (up to
+     a cap) when few departures remain, so the box is never half empty */
+  grid-auto-rows:var(--rowh,1.95rem);
   align-content:start;
 }
 .sheet li{
-  font-size:1.3rem;line-height:1.95rem;text-align:center;
+  font-size:var(--rowf,1.3rem);line-height:var(--rowh,1.95rem);text-align:center;
   border-bottom:1px solid var(--paper-2);
   font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;min-width:0;
 }
 .sheet li.now{background:var(--ink);color:var(--paper);font-weight:600;border-radius:0.15rem}
 .sheet .empty{
   font-size:1.2rem;line-height:1.95rem;color:var(--dim);
 }
+
+/* ---------- short-widget fallbacks ---------- */
+/* 5x1 and similar: there is not enough height for four stacked blocks,
+   so drop the least essential ones instead of shrinking everything. */
+body.compact .bar{display:none}
+body.tiny .bar,
+body.tiny .sheet{display:none}
+body.tiny{padding:0.35rem 0.8rem}
+body.tiny .route{font-size:1rem;margin-bottom:0.1rem}
+body.tiny .strip{border-bottom:0;padding-bottom:0}
 
 .note{font-size:1rem;color:var(--ink-soft);flex:0 0 auto;padding-top:0.2rem}
 </style>
@@ -187,11 +198,49 @@ var forcePH = false;
 function rescale(){
   var w = document.documentElement.clientWidth  || window.innerWidth;
   var h = document.documentElement.clientHeight || window.innerHeight;
-  /* height is the binding constraint on a short widget; width guards
-     against absurdly large type on a tall narrow box */
-  var u = Math.min(h / 21, w / 42);
-  u = Math.max(5, Math.min(u, 15));
+
+  /* Pick a layout tier first, THEN a scale. Previously one formula had to
+     serve every height, so a 5x1 box just shrank the type until four
+     stacked blocks squeezed into space meant for two. */
+  var mode, div;
+  if (h < 118)      { mode = "tiny";    div = 6.5; }   /* route + countdown only */
+  else if (h < 168) { mode = "compact"; div = 10.5; }  /* drop the masthead */
+  else              { mode = "full";    div = 13; }    /* everything */
+
+  document.body.className = mode;
+  var u = Math.min(h / div, w / 32);
+  u = Math.max(6, Math.min(u, 18));
   document.documentElement.style.fontSize = u + "px";
+}
+
+/* Grow the timetable rows to soak up leftover height when only a handful
+   of departures remain — capped so they never become giant bars. */
+function fillSheets(){
+  var sheets = document.querySelectorAll(".sheet");
+  for (var i = 0; i < sheets.length; i++){
+    var ul = sheets[i].querySelector("ul");
+    if (!ul) continue;
+    ul.style.removeProperty("--rowh");
+    ul.style.removeProperty("--rowf");
+
+    var track = getComputedStyle(ul).gridTemplateColumns.split(" ");
+    var cols = track.length;
+    var colW = parseFloat(track[0]) || 0;
+    var rows = Math.ceil(ul.children.length / Math.max(1, cols));
+    if (!rows) continue;
+
+    var base = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.95;
+    var avail = sheets[i].clientHeight;
+    var rowh = Math.min(avail / rows, base * 2.4);
+    if (rowh > base + 0.5){
+      /* "20:20" is 5 tabular glyphs ~0.58em each; leave a little gutter so
+         neighbouring cells can never touch, let alone overlap */
+      var byWidth  = colW ? (colW * 0.88) / 3.1 : Infinity;
+      var byHeight = rowh * 0.6;
+      ul.style.setProperty("--rowh", rowh + "px");
+      ul.style.setProperty("--rowf", Math.max(8, Math.min(byHeight, byWidth, base)) + "px");
+    }
+  }
 }
 
 function toMinutes(hhmm){
@@ -270,15 +319,7 @@ function render(){
     html += buildDeck(DECKS[i], table[DECKS[i].key], nowMins);
   }
   document.getElementById("decks").innerHTML = html;
-
-  /* keep the live departure in view inside each compressed grid */
-  var lives = document.querySelectorAll(".sheet li.now");
-  for (var m = 0; m < lives.length; m++){
-    var box = lives[m].closest(".sheet");
-    if (box && box.scrollHeight > box.clientHeight){
-      box.scrollTop = Math.max(0, lives[m].offsetTop - box.clientHeight / 2 + lives[m].offsetHeight / 2);
-    }
-  }
+  fillSheets();
 }
 
 document.getElementById("phbtn").addEventListener("click", function(){
