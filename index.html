@@ -93,7 +93,8 @@ body{
 .sheet::-webkit-scrollbar{display:none}
 .sheet ul{
   list-style:none;display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(4rem,1fr));
+  /* column count is chosen by JS to maximise legible type, not fixed */
+  grid-template-columns:repeat(var(--cols,4),1fr);
   /* row height is a variable: fixed by default, but JS grows it (up to
      a cap) when few departures remain, so the box is never half empty */
   grid-auto-rows:var(--rowh,1.95rem);
@@ -195,51 +196,96 @@ var forcePH = false;
    Fluid scale: one root font-size drives every dimension, so the
    layout fills whatever pixel box the launcher hands the widget.
    ------------------------------------------------------------ */
-function rescale(){
-  var w = document.documentElement.clientWidth  || window.innerWidth;
-  var h = document.documentElement.clientHeight || window.innerHeight;
+var MIN_U = 5, MAX_U = 46, GOOD_U = 9;
 
-  /* Pick a layout tier first, THEN a scale. Previously one formula had to
-     serve every height, so a 5x1 box just shrank the type until four
-     stacked blocks squeezed into space meant for two. */
-  var mode, div;
-  if (h < 118)      { mode = "tiny";    div = 6.5; }   /* route + countdown only */
-  else if (h < 168) { mode = "compact"; div = 10.5; }  /* drop the masthead */
-  else              { mode = "full";    div = 13; }    /* everything */
+function applyU(u){ document.documentElement.style.fontSize = u + "px"; }
+function curU(){ return parseFloat(document.documentElement.style.fontSize) || 10; }
 
-  document.body.className = mode;
-  var u = Math.min(h / div, w / 32);
-  u = Math.max(6, Math.min(u, 18));
-  document.documentElement.style.fontSize = u + "px";
+/* Does anything spill at the current scale? Measured, not predicted — the
+   widget host's viewport is not the CSS size we would guess from the grid. */
+function overflows(){
+  var vh = document.documentElement.clientHeight;
+  var bar = document.querySelector(".bar");
+  var barOn = bar && getComputedStyle(bar).display !== "none";
+  var i, els;
+
+  if (barOn && bar.scrollWidth > bar.clientWidth + 1) return true;
+  els = document.querySelectorAll(".strip, .route");
+  for (i = 0; i < els.length; i++){
+    if (els[i].scrollWidth > els[i].clientWidth + 1) return true;
+  }
+
+  var cs = getComputedStyle(document.body);
+  var need = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  if (barOn) need += bar.offsetHeight + parseFloat(getComputedStyle(bar).marginBottom);
+
+  var deck = document.querySelector(".deck");
+  if (deck){
+    var r = deck.querySelector(".route"), s = deck.querySelector(".strip");
+    if (r) need += r.offsetHeight;
+    if (s) need += s.offsetHeight;
+  }
+  var sheet = document.querySelector(".sheet");
+  if (sheet && getComputedStyle(sheet).display !== "none"){
+    need += 2 * 1.95 * curU();          /* insist on room for two grid rows */
+  }
+  return need > vh;
 }
 
-/* Grow the timetable rows to soak up leftover height when only a handful
-   of departures remain — capped so they never become giant bars. */
+/* Largest font scale at which the given tier still fits, by bisection. */
+function bestU(mode){
+  document.body.className = (mode === "full") ? "" : mode;
+  var lo = MIN_U, hi = MAX_U, best = MIN_U, mid, i;
+  for (i = 0; i < 11; i++){
+    mid = (lo + hi) / 2;
+    applyU(mid);
+    if (!overflows()){ best = mid; lo = mid; } else { hi = mid; }
+  }
+  return best;
+}
+
+/* Choose the richest tier that still reads well, then scale it to fill. */
+function rescale(){
+  var tiers = ["full", "compact", "tiny"], res = [], i;
+  for (i = 0; i < tiers.length; i++) res.push({ m: tiers[i], u: bestU(tiers[i]) });
+
+  var pick = res[0];
+  if (pick.u < GOOD_U){
+    if (res[1].u >= GOOD_U) pick = res[1];
+    else pick = (res[2].u > res[1].u) ? res[2] : res[1];
+  }
+  document.body.className = (pick.m === "full") ? "" : pick.m;
+  applyU(pick.u);
+}
+
+/* Pick the column count that yields the largest legible type for however
+   many departures are left, then size rows to consume the leftover height. */
 function fillSheets(){
   var sheets = document.querySelectorAll(".sheet");
   for (var i = 0; i < sheets.length; i++){
     var ul = sheets[i].querySelector("ul");
     if (!ul) continue;
-    ul.style.removeProperty("--rowh");
-    ul.style.removeProperty("--rowf");
+    var n = ul.children.length;
+    if (!n) continue;
 
-    var track = getComputedStyle(ul).gridTemplateColumns.split(" ");
-    var cols = track.length;
-    var colW = parseFloat(track[0]) || 0;
-    var rows = Math.ceil(ul.children.length / Math.max(1, cols));
-    if (!rows) continue;
+    var availH = sheets[i].clientHeight;
+    var availW = sheets[i].clientWidth;
+    if (availH <= 0 || availW <= 0) continue;
 
-    var base = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.95;
-    var avail = sheets[i].clientHeight;
-    var rowh = Math.min(avail / rows, base * 2.4);
-    if (rowh > base + 0.5){
-      /* "20:20" is 5 tabular glyphs ~0.58em each; leave a little gutter so
-         neighbouring cells can never touch, let alone overlap */
-      var byWidth  = colW ? (colW * 0.88) / 3.1 : Infinity;
-      var byHeight = rowh * 0.6;
-      ul.style.setProperty("--rowh", rowh + "px");
-      ul.style.setProperty("--rowf", Math.max(8, Math.min(byHeight, byWidth, base)) + "px");
+    var capF = curU() * 2.4;
+    var best = null;
+    for (var cols = 1; cols <= 10; cols++){
+      var rows = Math.ceil(n / cols);
+      var rowh = availH / rows;
+      var colW = availW / cols;
+      /* "20:20" is 5 tabular glyphs at ~0.58em, plus a gutter */
+      var f = Math.min((colW * 0.86) / 3.1, rowh * 0.62, capF);
+      if (!best || f > best.f) best = { f: f, cols: cols, rowh: rowh };
     }
+    var fs = Math.max(6.5, best.f);
+    ul.style.setProperty("--cols", best.cols);
+    ul.style.setProperty("--rowh", Math.max(best.rowh, fs * 1.35) + "px");
+    ul.style.setProperty("--rowf", fs + "px");
   }
 }
 
@@ -305,7 +351,6 @@ function buildDeck(deck, times, nowMins){
 }
 
 function render(){
-  rescale();
   var now = new Date();
   var nowMins = now.getHours()*60 + now.getMinutes();
   var ph = isHolidaySchedule(now);
@@ -319,6 +364,8 @@ function render(){
     html += buildDeck(DECKS[i], table[DECKS[i].key], nowMins);
   }
   document.getElementById("decks").innerHTML = html;
+  /* content first, then measure-and-fit, then fill the grid */
+  rescale();
   fillSheets();
 }
 
