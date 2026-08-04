@@ -7,7 +7,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="牽晴間村巴">
-<!-- Theme color updated to the new App Background -->
 <meta name="theme-color" content="#F4F6F8">
 <title>牽晴間 穿梭巴士時間表 (Dawning Views Shuttle)</title>
 <style>
@@ -23,7 +22,7 @@
   --bg-app: #F4F6F8;
   --border-color: #E0E4E8;
   --text-muted: #6B7280;
-  --row-hover: rgba(21, 140, 181, 0.08); /* Faint blue hover */
+  --row-hover: rgba(21, 140, 181, 0.08);
   
   /* Radii & Shadows */
   --radius-md: 12px;
@@ -35,7 +34,6 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  /* Fluid scaling base */
   font-size: 10px;
   height: 100%;
 }
@@ -45,7 +43,6 @@ body {
   overflow: hidden;
   background: var(--bg-app);
   color: var(--text-main);
-  /* Modern Sans-Serif Stack + Chinese fonts */
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Hiragino Sans CNS", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   padding: 1rem;
   display: flex;
@@ -153,7 +150,7 @@ body {
   text-overflow: ellipsis; 
   flex: 0 0 auto;
   background: rgba(13, 100, 58, 0.04);
-  padding: 0.6rem 0.8rem;
+  padding: 0.8rem 1rem;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -169,32 +166,71 @@ body {
   margin-right: 0.8rem;
 }
 
+/* ---------- dynamic head area ---------- */
 .strip {
   display: flex; 
-  flex-wrap: nowrap; 
-  align-items: baseline; /* Better vertical alignment for varying font sizes */
-  gap: 0.6rem;
+  align-items: center; 
+  justify-content: space-between;
   flex: 0 0 auto; 
   min-width: 0; 
   overflow: hidden; 
   white-space: nowrap;
   border-bottom: 1px solid var(--border-color); 
-  padding: 0.8rem;
+  padding: 1.2rem 1.4rem;
+  background: var(--bg-white);
+  transition: background 0.3s;
 }
 
-.strip > * { flex: 0 0 auto; white-space: nowrap; }
+.strip.off {
+  background: #F9FAFB;
+}
+
+.time-left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
 
 .mins { 
-  font-size: 4rem; 
+  font-size: 4.2rem; 
   line-height: 0.85; 
   font-weight: 700; 
   color: var(--accent-blue); 
 }
 
 .unit { 
-  font-size: 1.1rem; 
+  font-size: 1.2rem; 
   font-weight: 600;
   color: var(--text-muted); 
+}
+
+.msg {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.next {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.next span {
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.2rem;
+}
+
+.next b {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1;
 }
 
 /* ---------- full timetable ---------- */
@@ -204,19 +240,7 @@ body {
   overflow-y: auto; 
   overscroll-behavior: contain; 
   scrollbar-width: none;
-  padding: 0.2rem;
-}
-
-.sheet::-webkit-scrollbar { display: none; }
-
-.sheet ul {
-  list-style: none; 
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
-  grid-auto-rows: 2.4rem;
-  align-content: start;
-  gap: 0.2rem;
-  padding: 0.2rem;
+  position: relative; /* Fixed offsetTop for scrolling */
 }
 
 .sheet::-webkit-scrollbar { display: none; }
@@ -228,7 +252,7 @@ body {
   grid-auto-rows: 2.8rem;
   align-content: start;
   gap: 0.4rem;
-  padding: 0.5rem;
+  padding: 0.8rem;
 }
 
 .sheet li {
@@ -240,10 +264,11 @@ body {
   background: var(--bg-app);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  transition: background 0.2s;
+  transition: background 0.2s, opacity 0.2s;
+  cursor: default;
 }
 
-.sheet li:hover {
+.sheet li:not(.now):not(.past):hover {
   background: var(--row-hover);
 }
 
@@ -257,11 +282,11 @@ body {
 }
 
 .sheet .empty {
-  font-size: 1.3rem; 
-  line-height: 2rem; 
-  color: var(--text-muted);
+  font-size: 1.4rem;
+  line-height: 2.8rem;
   text-align: center;
-  padding: 1.5rem 0.5rem;
+  color: var(--text-muted);
+  padding: 1rem;
 }
 
 </style>
@@ -319,7 +344,7 @@ var TIMETABLE = {
   }
 };
 
-var HOLIDAYS = []; // Cleared hardcoded dates; now populates from API.
+var HOLIDAYS = []; 
 
 var DECKS = [
   { key:"fromEstate",  eyebrow:"出程", route:"牽晴間 → 粉嶺站" },
@@ -327,6 +352,8 @@ var DECKS = [
 ];
 
 var forcePH = false;
+var activeIndexes = { fromEstate: -1, fromStation: -1 };
+var initialScrollDone = false;
 
 function rescale(){
   var w = document.documentElement.clientWidth  || window.innerWidth;
@@ -359,42 +386,53 @@ function buildDeck(deck, times, nowMins){
     if (toMinutes(times[i]) >= nowMins) upcoming.push(times[i]);
   }
 
+  // Detect if the active bus has progressed
+  var nextTime = upcoming.length > 0 ? upcoming[0] : null;
+  var changed = (activeIndexes[deck.key] !== nextTime);
+  activeIndexes[deck.key] = nextTime;
+
   var head;
   if (upcoming.length === 0){
-    head = '<span class="msg">今日已尾班</span>'
-         + '<span class="next"><span>Next</span><b class="num">' + display(times[0]) + '</b></span>';
+    head = '<div class="time-left"><span class="msg">今日已尾班</span></div>'
+         + '<div class="next"><span>Next</span><b class="num">' + display(times[0]) + '</b></div>';
   } else {
-    var mins = toMinutes(upcoming[0]) - nowMins;
+    var upcomingTime = upcoming[0];
+    var mins = toMinutes(upcomingTime) - nowMins;
     var suspended = nowMins >= 780 && nowMins < 900;
+    
     if (suspended){
-      head = '<span class="msg">暫停服務</span>'
-           + '<span class="next"><span>Next</span><b class="num">' + display(upcoming[0]) + '</b></span>';
+      head = '<div class="time-left"><span class="msg">暫停服務</span></div>'
+           + '<div class="next"><span>Next</span><b class="num">' + display(upcomingTime) + '</b></div>';
     } else if (mins === 0){
-      /* Updated inline color to match new design system (--accent-blue) */
-      head = '<span class="msg" style="color:var(--accent-blue)">即將開出</span>'
-           + '<span class="next"><span>Next</span><b class="num">' + display(upcoming[0]) + '</b></span>';
+      head = '<div class="time-left"><span class="msg" style="color:var(--accent-blue)">即將開出</span></div>'
+           + '<div class="next"><span>Next</span><b class="num">' + display(upcomingTime) + '</b></div>';
     } else {
-      head = '<span class="mins num">' + mins + '</span><span class="unit">分鐘 min</span>'
-           + '<span class="next"><span>Next</span><b class="num">' + display(upcoming[0]) + '</b></span>';
+      head = '<div class="time-left"><span class="mins num">' + mins + '</span><span class="unit">分鐘 min</span></div>'
+           + '<div class="next"><span>Next</span><b class="num">' + display(upcomingTime) + '</b></div>';
     }
   }
+  
   var offCls = (upcoming.length === 0 || (nowMins >= 780 && nowMins < 900)) ? " off" : "";
 
+  // Render only upcoming buses
   var sheet;
-  if (upcoming.length === 0){
-    sheet = '<div class="sheet"><p class="empty">明日 ' + display(times[0]) + ' 首班</p></div>';
+  if (upcoming.length === 0) {
+    sheet = '<div class="sheet"><div class="empty">明日 ' + display(times[0]) + ' 首班</div></div>';
   } else {
     sheet = '<div class="sheet"><ul>';
     for (var k = 0; k < upcoming.length; k++){
-      sheet += '<li class="' + (k === 0 ? "now" : "") + '">' + display(upcoming[k]) + '</li>';
+      var cls = (k === 0) ? "now" : "";
+      sheet += '<li class="' + cls + '">' + display(upcoming[k]) + '</li>';
     }
     sheet += '</ul></div>';
   }
 
-  return '<section class="deck">'
-       + '<h2 class="route"><i>' + esc(deck.eyebrow) + '</i>' + esc(deck.route) + '</h2>'
-       + '<div class="strip' + offCls + '">' + head + '</div>'
-       + sheet + '</section>';
+  var html = '<section class="deck">'
+           + '<h2 class="route"><i>' + esc(deck.eyebrow) + '</i>' + esc(deck.route) + '</h2>'
+           + '<div class="strip' + offCls + '">' + head + '</div>'
+           + sheet + '</section>';
+
+  return { html: html, changed: changed };
 }
 
 function render(){
@@ -408,17 +446,46 @@ function render(){
   document.getElementById("daylabel").textContent = ph ? "日 / 假期班次" : "一至六班次";
 
   var html = "";
+  var anyIndexChanged = false;
+  
   for (var i = 0; i < DECKS.length; i++){
-    html += buildDeck(DECKS[i], table[DECKS[i].key], nowMins);
+    var buildRes = buildDeck(DECKS[i], table[DECKS[i].key], nowMins);
+    html += buildRes.html;
+    if (buildRes.changed) anyIndexChanged = true;
   }
+
+  // Preserve user scroll positions before replacing innerHTML
+  var oldSheets = document.querySelectorAll(".sheet");
+  var scrolls = [];
+  for(var i = 0; i < oldSheets.length; i++) {
+    scrolls.push(oldSheets[i].scrollTop);
+  }
+
   document.getElementById("decks").innerHTML = html;
 
-  /* keep the live departure in view inside each compressed grid */
-  var lives = document.querySelectorAll(".sheet li.now");
-  for (var m = 0; m < lives.length; m++){
-    var box = lives[m].closest(".sheet");
-    if (box && box.scrollHeight > box.clientHeight){
-      box.scrollTop = Math.max(0, lives[m].offsetTop - box.clientHeight / 2 + lives[m].offsetHeight / 2);
+  var newSheets = document.querySelectorAll(".sheet");
+  
+  // Intelligent Scrolling: Auto-scroll ONLY on first load, manual mode toggle, or when a bus departs
+  if ((!initialScrollDone || anyIndexChanged) && newSheets.length > 0) {
+    var lives = document.querySelectorAll(".sheet li.now");
+    for (var m = 0; m < lives.length; m++){
+      var box = lives[m].closest(".sheet");
+      if (box && box.scrollHeight > box.clientHeight){
+        var targetTop = Math.max(0, lives[m].offsetTop - box.clientHeight / 2 + lives[m].offsetHeight / 2);
+        if (box.scrollTo) {
+          box.scrollTo({ top: targetTop, behavior: initialScrollDone ? 'smooth' : 'auto' });
+        } else {
+          box.scrollTop = targetTop;
+        }
+      }
+    }
+    initialScrollDone = true;
+  } else {
+    // Restore the user's manual scroll position seamlessly
+    for (var j = 0; j < newSheets.length; j++) {
+      if (scrolls[j] !== undefined) {
+        newSheets[j].scrollTop = scrolls[j];
+      }
     }
   }
 }
@@ -427,6 +494,7 @@ document.getElementById("phbtn").addEventListener("click", function(){
   forcePH = !forcePH;
   this.setAttribute("aria-pressed", forcePH ? "true" : "false");
   this.textContent = forcePH ? "假期 ✓" : "假期";
+  initialScrollDone = false; // Force re-centering on mode change
   render();
 });
 
@@ -437,7 +505,6 @@ function fetchHolidays() {
       return res.json();
     })
     .then(function(data) {
-      // The government API nests events inside vcalendar[0].vevent
       if (data && data.vcalendar && data.vcalendar[0] && data.vcalendar[0].vevent) {
         var evs = data.vcalendar[0].vevent;
         var liveHolidays = [];
@@ -446,7 +513,6 @@ function fetchHolidays() {
           var start = evs[i].dtstart;
           var str = "";
           
-          // Gracefully extract the date string, which can sometimes appear in different structures
           if (Array.isArray(start) && start.length > 0) {
             str = typeof start[0] === 'string' ? start[0] : (start[0].value || "");
           } else if (typeof start === 'string') {
@@ -455,9 +521,7 @@ function fetchHolidays() {
             str = start.value || "";
           }
           
-          // Only process strings structured as "YYYYMMDD"
           if (str && str.length === 8) {
-             // Convert "YYYYMMDD" to the "YYYY-MM-DD" format required by our app logic
              var iso = str.substring(0,4) + "-" + str.substring(4,6) + "-" + str.substring(6,8);
              if (liveHolidays.indexOf(iso) === -1) {
                liveHolidays.push(iso);
@@ -465,11 +529,9 @@ function fetchHolidays() {
           }
         }
         
-        // If we successfully mapped live holidays, replace the hardcoded array and re-render
         if (liveHolidays.length > 0) {
           HOLIDAYS = liveHolidays;
           render(); 
-          console.log("Public holidays synced successfully with the 1823 API.");
         }
       }
     })
@@ -480,7 +542,8 @@ function fetchHolidays() {
 
 window.addEventListener("resize", render);
 render();
-fetchHolidays(); // Trigger API fetch after initial render
+fetchHolidays(); 
+// Updates loop (runs every 10 seconds, but now preserves your scroll position!)
 setInterval(render, 10000);
 document.addEventListener("visibilitychange", function(){
   if (!document.hidden) render();
