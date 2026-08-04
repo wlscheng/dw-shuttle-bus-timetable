@@ -454,28 +454,9 @@ function render(){
     if (buildRes.changed) anyIndexChanged = true;
   }
 
-  // Preserve user scroll positions before replacing innerHTML
-  var oldSheets = document.querySelectorAll(".sheet");
-  var scrolls = [];
-  for(var i = 0; i < oldSheets.length; i++) {
-    scrolls.push(oldSheets[i].scrollTop);
-  }
-
+  // Inject the HTML cleanly. No forced scrolling memory needed 
+  // because past buses are removed, naturally keeping the next bus at the top.
   document.getElementById("decks").innerHTML = html;
-
-  var newSheets = document.querySelectorAll(".sheet");
-  
-  // Intelligent Scrolling: Restore user scroll position if it exists.
-  // Because past buses are removed, the "next" bus is ALWAYS at the top.
-  // We don't need to mathematically force a scroll down.
-  for (var j = 0; j < newSheets.length; j++) {
-    if (scrolls[j] !== undefined && scrolls[j] > 0) {
-      newSheets[j].scrollTop = scrolls[j];
-    } else {
-      // If no previous scroll, or if they were at the top, ensure we start at the very top.
-      newSheets[j].scrollTop = 0; 
-    }
-  }
 }
 
 document.getElementById("phbtn").addEventListener("click", function(){
