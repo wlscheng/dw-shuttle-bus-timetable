@@ -465,27 +465,15 @@ function render(){
 
   var newSheets = document.querySelectorAll(".sheet");
   
-  // Intelligent Scrolling: Auto-scroll ONLY on first load, manual mode toggle, or when a bus departs
-  if ((!initialScrollDone || anyIndexChanged) && newSheets.length > 0) {
-    var lives = document.querySelectorAll(".sheet li.now");
-    for (var m = 0; m < lives.length; m++){
-      var box = lives[m].closest(".sheet");
-      if (box && box.scrollHeight > box.clientHeight){
-        var targetTop = Math.max(0, lives[m].offsetTop - box.clientHeight / 2 + lives[m].offsetHeight / 2);
-        if (box.scrollTo) {
-          box.scrollTo({ top: targetTop, behavior: initialScrollDone ? 'smooth' : 'auto' });
-        } else {
-          box.scrollTop = targetTop;
-        }
-      }
-    }
-    initialScrollDone = true;
-  } else {
-    // Restore the user's manual scroll position seamlessly
-    for (var j = 0; j < newSheets.length; j++) {
-      if (scrolls[j] !== undefined) {
-        newSheets[j].scrollTop = scrolls[j];
-      }
+  // Intelligent Scrolling: Restore user scroll position if it exists.
+  // Because past buses are removed, the "next" bus is ALWAYS at the top.
+  // We don't need to mathematically force a scroll down.
+  for (var j = 0; j < newSheets.length; j++) {
+    if (scrolls[j] !== undefined && scrolls[j] > 0) {
+      newSheets[j].scrollTop = scrolls[j];
+    } else {
+      // If no previous scroll, or if they were at the top, ensure we start at the very top.
+      newSheets[j].scrollTop = 0; 
     }
   }
 }
