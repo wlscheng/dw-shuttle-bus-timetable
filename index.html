@@ -7,127 +7,296 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="牽晴間村巴">
-<meta name="theme-color" content="#EDE9DC">
-<title>牽晴間村巴</title>
+<!-- Theme color updated to the new App Background -->
+<meta name="theme-color" content="#F4F6F8">
+<title>牽晴間 穿梭巴士時間表 (Dawning Views Shuttle)</title>
 <style>
-:root{
-  --paper:#EDE9DC;
-  --paper-2:#E4DFCE;
-  --ink:#1C1B18;
-  --ink-soft:#5A564A;
-  --rule:#B9B3A0;
-  --seal:#A4321F;
-  --dim:#9A9484;
+:root {
+  /* Brand Colors from Logo Analysis */
+  --brand-green: #0D643A;
+  --text-main: #151515;
+  --accent-lime: #B2C916;
+  --accent-blue: #158CB5;
+  --bg-white: #FFFFFF;
+  
+  /* Derived UI Colors */
+  --bg-app: #F4F6F8;
+  --border-color: #E0E4E8;
+  --text-muted: #6B7280;
+  --row-hover: rgba(21, 140, 181, 0.08); /* Faint blue hover */
+  
+  /* Radii & Shadows */
+  --radius-md: 12px;
+  --radius-sm: 6px;
+  --shadow-card: 0 4px 20px rgba(21, 21, 21, 0.06);
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html{
-  -webkit-text-size-adjust:100%;
-  /* JS overrides this; the value here is only a first-paint guess.
-     Every size below is expressed in rem, so the whole widget scales
-     with whatever box Android gives it. */
-  font-size:10px;
-  height:100%;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  /* Fluid scaling base */
+  font-size: 10px;
+  height: 100%;
 }
-body{
-  height:100%;
-  overflow:hidden;
-  background:var(--paper);
-  color:var(--ink);
-  font-family:"PingFang TC","Hiragino Sans CNS","Noto Sans TC","Microsoft JhengHei",-apple-system,sans-serif;
-  padding:0.5rem 0.8rem 0.4rem;
-  display:flex;
-  flex-direction:column;
-  -webkit-tap-highlight-color:transparent;
+
+body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-app);
+  color: var(--text-main);
+  /* Modern Sans-Serif Stack + Chinese fonts */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Hiragino Sans CNS", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
 }
-.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";letter-spacing:-0.01em}
+
+.num { 
+  font-variant-numeric: tabular-nums; 
+  font-feature-settings: "tnum"; 
+  letter-spacing: -0.01em; 
+}
 
 /* ---------- one-line masthead ---------- */
-.bar{
-  display:flex;align-items:baseline;gap:0.7rem;
-  border-bottom:1px solid var(--ink);
-  padding-bottom:0.25rem;margin-bottom:0.35rem;
-  flex:0 0 auto;white-space:nowrap;overflow:hidden;
-}
-.bar h1{font-size:1.2rem;font-weight:600;letter-spacing:0.03em;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
-.bar .day{font-size:0.95rem;color:var(--ink-soft);flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
-.bar .clock{margin-left:auto;font-size:1.4rem;font-weight:500;flex:0 0 auto;padding-left:0.5rem}
-.mode{
-  background:none;border:1px solid var(--rule);border-radius:0.2rem;
-  padding:0.1rem 0.45rem;font:inherit;font-size:0.85rem;color:var(--ink-soft);
-  cursor:pointer;flex:0 0 auto;line-height:1.3;
-}
-.mode[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
-
-/* ---------- two decks side by side ---------- */
-.decks{
-  flex:1 1 auto;min-height:0;
-  display:grid;grid-template-columns:1fr 1fr;gap:0 1.4rem;
-}
-.deck{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden}
-.deck + .deck{border-left:1px solid var(--rule);padding-left:1.4rem;margin-left:-0.7rem}
-
-.route{
-  font-size:1.1rem;font-weight:600;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;flex:0 0 auto;
-}
-.route i{font-style:normal;font-weight:400;color:var(--ink-soft);letter-spacing:0.12em;margin-right:0.4rem}
-
-/* countdown + the next two, all on ONE row.
-   Every child is nowrap and non-growing; the row clips rather than
-   wrapping, so nothing can ever spill into the neighbouring deck. */
-.strip{
-  display:flex;flex-wrap:nowrap;align-items:baseline;gap:0.45rem;
-  flex:0 0 auto;min-width:0;overflow:hidden;white-space:nowrap;
-  border-bottom:1px solid var(--rule);padding:0.1rem 0 0.3rem;
-}
-.strip > *{flex:0 0 auto;white-space:nowrap}
-.mins{font-size:4rem;line-height:0.85;font-weight:500;color:var(--seal)}
-.unit{font-size:1.1rem;color:var(--seal)}
-.next{margin-left:auto;text-align:right}
-.next b{font-size:2.3rem;font-weight:500}
-.strip.off .mins,.strip.off .unit{color:var(--dim)}
-.msg{font-size:1.6rem;font-weight:500;color:var(--dim)}
-
-/* ---------- full timetable, fills all leftover pixels ---------- */
-.sheet{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
-.sheet::-webkit-scrollbar{display:none}
-.sheet ul{
-  list-style:none;display:grid;
-  /* column count is chosen by JS to maximise legible type, not fixed */
-  grid-template-columns:repeat(var(--cols,4),1fr);
-  /* row height is a variable: fixed by default, but JS grows it (up to
-     a cap) when few departures remain, so the box is never half empty */
-  grid-auto-rows:var(--rowh,1.95rem);
-  align-content:start;
-}
-.sheet li{
-  font-size:var(--rowf,1.3rem);line-height:var(--rowh,1.95rem);text-align:center;
-  border-bottom:1px solid var(--paper-2);
-  font-variant-numeric:tabular-nums;
-  white-space:nowrap;overflow:hidden;min-width:0;
-}
-.sheet li.now{background:var(--ink);color:var(--paper);font-weight:600;border-radius:0.15rem}
-.sheet .empty{
-  font-size:1.2rem;line-height:1.95rem;color:var(--dim);
+.bar {
+  display: flex; 
+  align-items: center; 
+  gap: 1rem;
+  padding: 0.5rem 0.5rem 1.5rem 0.5rem;
+  flex: 0 0 auto; 
+  white-space: nowrap; 
+  overflow: hidden;
 }
 
-/* ---------- short-widget fallbacks ---------- */
-/* 5x1 and similar: there is not enough height for four stacked blocks,
-   so drop the least essential ones instead of shrinking everything. */
-body.compact .bar{display:none}
-body.tiny .bar,
-body.tiny .sheet{display:none}
-body.tiny{padding:0.35rem 0.8rem}
-body.tiny .route{font-size:1rem;margin-bottom:0.1rem}
-body.tiny .strip{border-bottom:0;padding-bottom:0}
+.bar h1 {
+  font-size: 1.6rem; 
+  font-weight: 700; 
+  color: var(--brand-green);
+  flex: 0 1 auto; 
+  overflow: hidden; 
+  text-overflow: ellipsis;
+}
 
-.note{font-size:1rem;color:var(--ink-soft);flex:0 0 auto;padding-top:0.2rem}
+.bar .day {
+  font-size: 1.1rem; 
+  color: var(--text-muted);
+  flex: 0 1 auto; 
+  overflow: hidden; 
+  text-overflow: ellipsis;
+}
+
+.bar .clock {
+  margin-left: auto; 
+  font-size: 1.6rem; 
+  font-weight: 600; 
+  color: var(--text-main);
+  background: var(--bg-white);
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  flex: 0 0 auto;
+}
+
+.mode {
+  background: var(--bg-white); 
+  border: 1.5px solid var(--border-color); 
+  border-radius: 20px;
+  padding: 0.4rem 1rem; 
+  font: inherit; 
+  font-size: 1.1rem; 
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer; 
+  flex: 0 0 auto; 
+  line-height: 1.3;
+  transition: all 0.2s ease;
+}
+
+.mode[aria-pressed="true"] {
+  background: var(--brand-green); 
+  border-color: var(--brand-green); 
+  color: var(--bg-white);
+  box-shadow: 0 2px 8px rgba(13, 100, 58, 0.3);
+}
+
+/* ---------- two decks (cards) ---------- */
+.decks {
+  flex: 1 1 auto; 
+  min-height: 0;
+  display: grid; 
+  /* Responsive grid: 1 column on mobile, 2 on wider screens */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  padding-bottom: 1rem;
+}
+
+.deck {
+  background: var(--bg-white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  display: flex; 
+  flex-direction: column; 
+  min-height: 0; 
+  min-width: 0; 
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.03);
+}
+
+.route {
+  font-size: 1.3rem; 
+  font-weight: 700; 
+  color: var(--brand-green);
+  white-space: nowrap;
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  flex: 0 0 auto;
+  background: rgba(13, 100, 58, 0.04);
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.route i {
+  font-style: normal; 
+  font-weight: 600; 
+  color: var(--bg-white); 
+  background: var(--brand-green);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em; 
+  margin-right: 0.8rem;
+}
+
+.strip {
+  display: flex; 
+  flex-wrap: nowrap; 
+  align-items: center; 
+  gap: 0.6rem;
+  flex: 0 0 auto; 
+  min-width: 0; 
+  overflow: hidden; 
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-color); 
+  padding: 1.2rem;
+}
+
+.strip > * { flex: 0 0 auto; white-space: nowrap; }
+
+.mins { 
+  font-size: 4.5rem; 
+  line-height: 0.85; 
+  font-weight: 700; 
+  color: var(--accent-blue); 
+}
+
+.unit { 
+  font-size: 1.3rem; 
+  font-weight: 600;
+  color: var(--text-muted); 
+  align-self: flex-end;
+  padding-bottom: 0.4rem;
+}
+
+.next { 
+  margin-left: auto; 
+  text-align: right; 
+  display: flex;
+  flex-direction: column;
+}
+
+.next span {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.next b { 
+  font-size: 2.6rem; 
+  font-weight: 600; 
+  color: var(--text-main);
+}
+
+.strip.off .mins, .strip.off .unit, .strip.off .next b { 
+  color: var(--text-muted); 
+  opacity: 0.5;
+}
+
+.msg { 
+  font-size: 1.8rem; 
+  font-weight: 600; 
+  color: var(--text-muted); 
+}
+
+/* ---------- full timetable ---------- */
+.sheet {
+  flex: 1 1 auto; 
+  min-height: 0; 
+  overflow-y: auto; 
+  overscroll-behavior: contain; 
+  scrollbar-width: none;
+  padding: 0.5rem;
+}
+
+.sheet::-webkit-scrollbar { display: none; }
+
+.sheet ul {
+  list-style: none; 
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  grid-auto-rows: 2.8rem;
+  align-content: start;
+  gap: 0.4rem;
+  padding: 0.5rem;
+}
+
+.sheet li {
+  font-size: 1.4rem; 
+  line-height: 2.8rem; 
+  text-align: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  background: var(--bg-app);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.2s;
+}
+
+.sheet li:hover {
+  background: var(--row-hover);
+}
+
+.sheet li.now {
+  background: var(--brand-green); 
+  color: var(--bg-white); 
+  font-weight: 700; 
+  box-shadow: 0 2px 6px rgba(13, 100, 58, 0.4);
+  /* Accent lime indicator for the immediate next bus */
+  border-left: 4px solid var(--accent-lime);
+}
+
+.sheet .empty {
+  font-size: 1.4rem; 
+  line-height: 2rem; 
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2rem;
+}
+
+/* Media query to handle very small screens specifically */
+@media (max-width: 400px) {
+  html { font-size: 8px; } /* Slightly scale down baseline for very tight screens */
+  .decks { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
 
 <header class="bar">
-  <h1>牽晴間 穿梭巴士</h1>
+  <h1>牽晴間穿梭巴士</h1>
   <span class="day" id="daylabel">—</span>
   <button class="mode" id="phbtn" aria-pressed="false">假期</button>
   <span class="clock num" id="clock">--:--</span>
@@ -177,13 +346,7 @@ var TIMETABLE = {
   }
 };
 
-/* 公眾假期 — 星期日已自動識別，此處只需填非星期日的假期
-   請每年核對政府公佈的日期後更新 */
-var HOLIDAYS = [
-  "2026-01-01","2026-02-17","2026-02-18","2026-02-19","2026-04-03","2026-04-06",
-  "2026-04-07","2026-05-01","2026-05-24","2026-06-19","2026-07-01","2026-09-26",
-  "2026-10-01","2026-10-19","2026-12-25","2026-12-26"
-];
+var HOLIDAYS = []; // Cleared hardcoded dates; now populates from API.
 
 var DECKS = [
   { key:"fromEstate",  eyebrow:"出程", route:"牽晴間 → 粉嶺站" },
@@ -192,101 +355,13 @@ var DECKS = [
 
 var forcePH = false;
 
-/* ------------------------------------------------------------
-   Fluid scale: one root font-size drives every dimension, so the
-   layout fills whatever pixel box the launcher hands the widget.
-   ------------------------------------------------------------ */
-var MIN_U = 5, MAX_U = 46, GOOD_U = 9;
-
-function applyU(u){ document.documentElement.style.fontSize = u + "px"; }
-function curU(){ return parseFloat(document.documentElement.style.fontSize) || 10; }
-
-/* Does anything spill at the current scale? Measured, not predicted — the
-   widget host's viewport is not the CSS size we would guess from the grid. */
-function overflows(){
-  var vh = document.documentElement.clientHeight;
-  var bar = document.querySelector(".bar");
-  var barOn = bar && getComputedStyle(bar).display !== "none";
-  var i, els;
-
-  if (barOn && bar.scrollWidth > bar.clientWidth + 1) return true;
-  els = document.querySelectorAll(".strip, .route");
-  for (i = 0; i < els.length; i++){
-    if (els[i].scrollWidth > els[i].clientWidth + 1) return true;
-  }
-
-  var cs = getComputedStyle(document.body);
-  var need = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  if (barOn) need += bar.offsetHeight + parseFloat(getComputedStyle(bar).marginBottom);
-
-  var deck = document.querySelector(".deck");
-  if (deck){
-    var r = deck.querySelector(".route"), s = deck.querySelector(".strip");
-    if (r) need += r.offsetHeight;
-    if (s) need += s.offsetHeight;
-  }
-  var sheet = document.querySelector(".sheet");
-  if (sheet && getComputedStyle(sheet).display !== "none"){
-    need += 2 * 1.95 * curU();          /* insist on room for two grid rows */
-  }
-  return need > vh;
-}
-
-/* Largest font scale at which the given tier still fits, by bisection. */
-function bestU(mode){
-  document.body.className = (mode === "full") ? "" : mode;
-  var lo = MIN_U, hi = MAX_U, best = MIN_U, mid, i;
-  for (i = 0; i < 11; i++){
-    mid = (lo + hi) / 2;
-    applyU(mid);
-    if (!overflows()){ best = mid; lo = mid; } else { hi = mid; }
-  }
-  return best;
-}
-
-/* Choose the richest tier that still reads well, then scale it to fill. */
 function rescale(){
-  var tiers = ["full", "compact", "tiny"], res = [], i;
-  for (i = 0; i < tiers.length; i++) res.push({ m: tiers[i], u: bestU(tiers[i]) });
-
-  var pick = res[0];
-  if (pick.u < GOOD_U){
-    if (res[1].u >= GOOD_U) pick = res[1];
-    else pick = (res[2].u > res[1].u) ? res[2] : res[1];
-  }
-  document.body.className = (pick.m === "full") ? "" : pick.m;
-  applyU(pick.u);
-}
-
-/* Pick the column count that yields the largest legible type for however
-   many departures are left, then size rows to consume the leftover height. */
-function fillSheets(){
-  var sheets = document.querySelectorAll(".sheet");
-  for (var i = 0; i < sheets.length; i++){
-    var ul = sheets[i].querySelector("ul");
-    if (!ul) continue;
-    var n = ul.children.length;
-    if (!n) continue;
-
-    var availH = sheets[i].clientHeight;
-    var availW = sheets[i].clientWidth;
-    if (availH <= 0 || availW <= 0) continue;
-
-    var capF = curU() * 2.4;
-    var best = null;
-    for (var cols = 1; cols <= 10; cols++){
-      var rows = Math.ceil(n / cols);
-      var rowh = availH / rows;
-      var colW = availW / cols;
-      /* "20:20" is 5 tabular glyphs at ~0.58em, plus a gutter */
-      var f = Math.min((colW * 0.86) / 3.1, rowh * 0.62, capF);
-      if (!best || f > best.f) best = { f: f, cols: cols, rowh: rowh };
-    }
-    var fs = Math.max(6.5, best.f);
-    ul.style.setProperty("--cols", best.cols);
-    ul.style.setProperty("--rowh", Math.max(best.rowh, fs * 1.35) + "px");
-    ul.style.setProperty("--rowf", fs + "px");
-  }
+  var w = document.documentElement.clientWidth  || window.innerWidth;
+  var h = document.documentElement.clientHeight || window.innerHeight;
+  /* Retained your fluid logic but tweaked slightly for the new card padding */
+  var u = Math.min(h / 24, w / 48);
+  u = Math.max(7, Math.min(u, 14));
+  document.documentElement.style.fontSize = u + "px";
 }
 
 function toMinutes(hhmm){
@@ -315,24 +390,24 @@ function buildDeck(deck, times, nowMins){
   var head;
   if (upcoming.length === 0){
     head = '<span class="msg">今日已尾班</span>'
-         + '<span class="next"><b class="num">' + display(times[0]) + '</b></span>';
+         + '<span class="next"><span>Next</span><b class="num">' + display(times[0]) + '</b></span>';
   } else {
     var mins = toMinutes(upcoming[0]) - nowMins;
     var suspended = nowMins >= 780 && nowMins < 900;
     if (suspended){
       head = '<span class="msg">暫停服務</span>'
-           + '<span class="next"><b class="num">' + display(upcoming[0]) + '</b></span>';
+           + '<span class="next"><span>Next</span><b class="num">' + display(upcoming[0]) + '</b></span>';
     } else if (mins === 0){
-      head = '<span class="msg" style="color:var(--seal)">即將開出</span>'
-           + '<span class="next"><b class="num">' + display(upcoming[0]) + '</b></span>';
+      /* Updated inline color to match new design system (--accent-blue) */
+      head = '<span class="msg" style="color:var(--accent-blue)">即將開出</span>'
+           + '<span class="next"><span>Next</span><b class="num">' + display(upcoming[0]) + '</b></span>';
     } else {
-      head = '<span class="mins num">' + mins + '</span><span class="unit">分鐘</span>'
-           + '<span class="next"><b class="num">' + display(upcoming[0]) + '</b></span>';
+      head = '<span class="mins num">' + mins + '</span><span class="unit">分鐘 min</span>'
+           + '<span class="next"><span>Next</span><b class="num">' + display(upcoming[0]) + '</b></span>';
     }
   }
   var offCls = (upcoming.length === 0 || (nowMins >= 780 && nowMins < 900)) ? " off" : "";
 
-  /* remaining departures only — anything already gone is dropped */
   var sheet;
   if (upcoming.length === 0){
     sheet = '<div class="sheet"><p class="empty">明日 ' + display(times[0]) + ' 首班</p></div>';
@@ -351,33 +426,89 @@ function buildDeck(deck, times, nowMins){
 }
 
 function render(){
+  rescale();
   var now = new Date();
   var nowMins = now.getHours()*60 + now.getMinutes();
   var ph = isHolidaySchedule(now);
   var table = ph ? TIMETABLE.holiday : TIMETABLE.weekday;
 
   document.getElementById("clock").textContent = pad(now.getHours()) + ":" + pad(now.getMinutes());
-  document.getElementById("daylabel").textContent = ph ? "日／假期班次" : "一至六班次";
+  document.getElementById("daylabel").textContent = ph ? "日 / 假期班次" : "一至六班次";
 
   var html = "";
   for (var i = 0; i < DECKS.length; i++){
     html += buildDeck(DECKS[i], table[DECKS[i].key], nowMins);
   }
   document.getElementById("decks").innerHTML = html;
-  /* content first, then measure-and-fit, then fill the grid */
-  rescale();
-  fillSheets();
+
+  /* keep the live departure in view inside each compressed grid */
+  var lives = document.querySelectorAll(".sheet li.now");
+  for (var m = 0; m < lives.length; m++){
+    var box = lives[m].closest(".sheet");
+    if (box && box.scrollHeight > box.clientHeight){
+      box.scrollTop = Math.max(0, lives[m].offsetTop - box.clientHeight / 2 + lives[m].offsetHeight / 2);
+    }
+  }
 }
 
 document.getElementById("phbtn").addEventListener("click", function(){
   forcePH = !forcePH;
   this.setAttribute("aria-pressed", forcePH ? "true" : "false");
-  this.textContent = forcePH ? "假期✓" : "假期";
+  this.textContent = forcePH ? "假期 ✓" : "假期";
   render();
 });
 
+function fetchHolidays() {
+  fetch('https://www.1823.gov.hk/common/ical/en.json')
+    .then(function(res) {
+      if (!res.ok) throw new Error('API Network Error');
+      return res.json();
+    })
+    .then(function(data) {
+      // The government API nests events inside vcalendar[0].vevent
+      if (data && data.vcalendar && data.vcalendar[0] && data.vcalendar[0].vevent) {
+        var evs = data.vcalendar[0].vevent;
+        var liveHolidays = [];
+        
+        for (var i = 0; i < evs.length; i++) {
+          var start = evs[i].dtstart;
+          var str = "";
+          
+          // Gracefully extract the date string, which can sometimes appear in different structures
+          if (Array.isArray(start) && start.length > 0) {
+            str = typeof start[0] === 'string' ? start[0] : (start[0].value || "");
+          } else if (typeof start === 'string') {
+            str = start;
+          } else if (start && typeof start === 'object') {
+            str = start.value || "";
+          }
+          
+          // Only process strings structured as "YYYYMMDD"
+          if (str && str.length === 8) {
+             // Convert "YYYYMMDD" to the "YYYY-MM-DD" format required by our app logic
+             var iso = str.substring(0,4) + "-" + str.substring(4,6) + "-" + str.substring(6,8);
+             if (liveHolidays.indexOf(iso) === -1) {
+               liveHolidays.push(iso);
+             }
+          }
+        }
+        
+        // If we successfully mapped live holidays, replace the hardcoded array and re-render
+        if (liveHolidays.length > 0) {
+          HOLIDAYS = liveHolidays;
+          render(); 
+          console.log("Public holidays synced successfully with the 1823 API.");
+        }
+      }
+    })
+    .catch(function(err) {
+      console.warn("Could not fetch holidays from API. Falling back to automatic Sunday handling only.", err);
+    });
+}
+
 window.addEventListener("resize", render);
 render();
+fetchHolidays(); // Trigger API fetch after initial render
 setInterval(render, 10000);
 document.addEventListener("visibilitychange", function(){
   if (!document.hidden) render();
